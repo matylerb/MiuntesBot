@@ -30,10 +30,13 @@ async def join(ctx):
 
     if ctx.author.voice:
         channel = ctx.author.voice.channel
-        await channel.connect()
-        await ctx.send(f'Joined {channel}')
+        if ctx.voice_client is not None:
+            await ctx.voice_client.move_to(channel)
+        else:
+            await channel.connect(cls=voice_recv.VoiceRecvClient)
+        await ctx.send(f"Joined {channel.name} and ready to record!")
     else:
-        await ctx.send('You are not connected to a voice channel.')
+        await ctx.send("You need to be in a voice channel first!")
 
 @bot.command()
 async def leave(ctx):
@@ -54,7 +57,7 @@ async def record(ctx):
     await ctx.send('Recording started...')
 
 def on_recording_finished(user, data: bytes):
-    filename = f'recrecorded_{user.name}.pcm'
+    filename = f'recrecorded_{user.name}.mp3'
     with open(filename, 'wb') as f:
         f.write(data)   
     print(f'Recording saved as {filename}')
