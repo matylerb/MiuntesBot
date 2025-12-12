@@ -3,23 +3,29 @@ from discord.ext import commands, voice_recv
 import logging
 from dotenv import load_dotenv
 import os
+import wave
 import asyncio
 
-
 load_dotenv()   
-TOKEN = os.getenv('DISCORD_TOEKN')
+
+# Fixed typo: DISCORD_TOEKN -> DISCORD_TOKEN
+TOKEN = os.getenv('DISCORD_TOKEN')
 ID = os.getenv('CHANNEL_ID')
 
 handlers = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w')
 
 if ID is None:
     raise ValueError("Channel ID not found in environment variables.")
+
 CHANNEL_ID = int(ID)
 
 intents = discord.Intents.default()
 intents.message_content = True
+intents.voice_states = True  
+
 bot = commands.Bot(command_prefix='!', intents=intents)
 
+recording_data = {}
 
 @bot.event
 async def on_ready():
@@ -27,7 +33,6 @@ async def on_ready():
 
 @bot.command()
 async def join(ctx):
-
     if ctx.author.voice:
         channel = ctx.author.voice.channel
         if ctx.voice_client is not None:
@@ -52,24 +57,64 @@ async def record(ctx):
         await ctx.send('I am not connected to a voice channel.')
         return
     
-    sink = voice_recv.BasicSink(on_recording_finished)
-    ctx.voice_client.listen(sink)
-    await ctx.send('Recording started...')
+    if ctx.voice_client.is_listening():
+        await ctx.send('I am already recording.')
+        return
+    
 
-def on_recording_finished(user, data: bytes):
-    filename = f'recrecorded_{user.name}.mp3'
-    with open(filename, 'wb') as f:
-        f.write(data)   
-    print(f'Recording saved as {filename}')
+    def callback(user, data):
+        on_recording_finished(user, data)
+    
+    sink = voice_recv.BasicSink(callback)
+    ctx.voice_client.listen(sink)
+    
+
+    ctx.voice_client.recording_sink = sink
+    
+    await ctx.send('Recording started...')
 
 @bot.command()
 async def stop(ctx):
     if ctx.voice_client and ctx.voice_client.is_listening():
         ctx.voice_client.stop_listening()
-        await ctx.send('Recording stopped.')
-
+        await ctx.send('Recording stopped. Check console for saved files.')
     else:
         await ctx.send('I am not recording right now.')
+
+def on_recording_finished(user, data):
+
+    if hasattr(data, 'pcm'):
+        audio_bytes = data.pcm
+    elif hasattr(data, 'packet'):
+        audio_bytes = data.packet.decrypted_data
+    else:
+        audio_bytes = bytes(data)
+    
+    if audio_bytes:
+        save_audio(user, audio_bytes)
+        print(f"Received audio from {user.name}: {len(audio_bytes)} bytes")
+
+def save_audio(user, data: bytes):
+
+    filename = f'recording_{user.name}_{user.id}.wav'
+    
+    print(f"Writing {len(data)} bytes to {filename}...")
+    
+    # Discord voice data specs
+    channels = 2
+    sample_width = 2  # 16-bit
+    sample_rate = 48000
+    
+    try:
+        with wave.open(filename, 'wb') as f:
+            f.setnchannels(channels)
+            f.setsampwidth(sample_width)
+            f.setframerate(sample_rate)
+            f.writeframes(data)
+        
+        print(f'Successfully saved {filename}')
+    except Exception as e:
+        print(f'Error saving {filename}: {e}')
 
 if TOKEN:
     bot.run(TOKEN, log_handler=handlers)
