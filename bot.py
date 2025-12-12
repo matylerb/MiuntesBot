@@ -4,7 +4,8 @@ import logging
 from dotenv import load_dotenv
 import os
 import wave
-import asyncio
+from collections import defaultdict
+from datetime import datetime
 
 load_dotenv()   
 
@@ -25,7 +26,8 @@ intents.voice_states = True
 
 bot = commands.Bot(command_prefix='!', intents=intents)
 
-recording_data = {}
+recording_data = defaultdict(list)
+is_recording = False
 
 @bot.event
 async def on_ready():
@@ -53,6 +55,8 @@ async def leave(ctx):
 
 @bot.command()
 async def record(ctx):
+    global is_recording, recording_data
+
     if not ctx.voice_client:
         await ctx.send('I am not connected to a voice channel.')
         return
@@ -61,6 +65,9 @@ async def record(ctx):
         await ctx.send('I am already recording.')
         return
     
+    recording_data.clear()
+    is_recording = True
+    
 
     def callback(user, data):
         on_recording_finished(user, data)
@@ -68,21 +75,39 @@ async def record(ctx):
     sink = voice_recv.BasicSink(callback)
     ctx.voice_client.listen(sink)
     
-
     ctx.voice_client.recording_sink = sink
     
     await ctx.send('Recording started...')
 
 @bot.command()
 async def stop(ctx):
+    global is_recording, recording_data 
+
     if ctx.voice_client and ctx.voice_client.is_listening():
         ctx.voice_client.stop_listening()
+        is_recording = False
         await ctx.send('Recording stopped. Check console for saved files.')
+        if recording_data:
+                await ctx.send(f'Recording stopped. Processing {len(recording_data)} user(s)...')
+                
+                for user_id, audio_chunks in recording_data.items():
+                    user = bot.get_user(user_id)
+                    if user and audio_chunks:
+                        combined_audio = b''.join(audio_chunks)
+                        save_audio(user, combined_audio)
+                        await ctx.send(f'Saved recording for {user.name} ({len(combined_audio)} bytes)')
+        else:
+            await ctx.send('Recording stopped. No audio was captured.')
     else:
         await ctx.send('I am not recording right now.')
 
 def on_recording_finished(user, data):
 
+    global is_recording, recording_data
+
+    if not is_recording:
+        return
+    
     if hasattr(data, 'pcm'):
         audio_bytes = data.pcm
     elif hasattr(data, 'packet'):
@@ -91,12 +116,13 @@ def on_recording_finished(user, data):
         audio_bytes = bytes(data)
     
     if audio_bytes:
-        save_audio(user, audio_bytes)
+        recording_data[user.id].append(audio_bytes)
         print(f"Received audio from {user.name}: {len(audio_bytes)} bytes")
 
 def save_audio(user, data: bytes):
 
-    filename = f'recording_{user.name}_{user.id}.wav'
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f'recording_{user.name}_{timestamp}.wav'
     
     print(f"Writing {len(data)} bytes to {filename}...")
     
@@ -112,6 +138,7 @@ def save_audio(user, data: bytes):
             f.setframerate(sample_rate)
             f.writeframes(data)
         
+        duration = len(data) / (sample_rate * channels * sample_width)
         print(f'Successfully saved {filename}')
     except Exception as e:
         print(f'Error saving {filename}: {e}')
