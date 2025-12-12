@@ -5,3 +5,4 @@ __pycache__/
 discord.log
 opus.dll
 libopus.so
+discord.log.*
