@@ -1,8 +1,10 @@
 import discord
-from discord.ext import commands
+from discord.ext import commands, voice_recv
 import logging
 from dotenv import load_dotenv
 import os
+import asyncio
+
 
 load_dotenv()   
 TOKEN = os.getenv('DISCORD_TOEKN')
@@ -41,6 +43,30 @@ async def leave(ctx):
     else:
         await ctx.send('I am not connected to any voice channel.')
 
+@bot.command()
+async def record(ctx):
+    if not ctx.voice_client:
+        await ctx.send('I am not connected to a voice channel.')
+        return
+    
+    sink = voice_recv.BasicSink(on_recording_finished)
+    ctx.voice_client.listen(sink)
+    await ctx.send('Recording started...')
+
+def on_recording_finished(user, data: bytes):
+    filename = f'recrecorded_{user.name}.pcm'
+    with open(filename, 'wb') as f:
+        f.write(data)   
+    print(f'Recording saved as {filename}')
+
+@bot.command()
+async def stop(ctx):
+    if ctx.voice_client and ctx.voice_client.is_listening():
+        ctx.voice_client.stop_listening()
+        await ctx.send('Recording stopped.')
+
+    else:
+        await ctx.send('I am not recording right now.')
 
 if TOKEN:
     bot.run(TOKEN, log_handler=handlers)

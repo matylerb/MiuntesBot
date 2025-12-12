@@ -1,7 +1,49 @@
-[2025-12-12 14:41:18] [INFO    ] discord.client: logging in using static token
-[2025-12-12 14:41:19] [INFO    ] discord.gateway: Shard ID None has connected to Gateway (Session ID: c9fd2c87227320a0365e176642cd1c77).
-[2025-12-12 14:41:40] [INFO    ] discord.voice_state: Connecting to voice...
-[2025-12-12 14:41:40] [INFO    ] discord.voice_state: Starting voice handshake... (connection attempt 1)
-[2025-12-12 14:41:40] [INFO    ] discord.voice_state: Voice handshake complete. Endpoint found: c-lhr19-b204b0ab.discord.media:443
-[2025-12-12 14:41:40] [INFO    ] discord.voice_state: Voice connection complete.
-[2025-12-12 14:41:55] [INFO    ] discord.voice_state: The voice handshake is being terminated for Channel ID 799761389983367181 (Guild ID 799761389047906345)
+[2025-12-12 14:57:17] [INFO    ] discord.client: logging in using static token
+[2025-12-12 14:57:18] [INFO    ] discord.gateway: Shard ID None has connected to Gateway (Session ID: 7e74b3029b5b9679316ee6000a7c16a6).
+[2025-12-12 14:57:28] [INFO    ] discord.voice_state: Connecting to voice...
+[2025-12-12 14:57:28] [INFO    ] discord.voice_state: Starting voice handshake... (connection attempt 1)
+[2025-12-12 14:57:29] [INFO    ] discord.voice_state: Voice handshake complete. Endpoint found: c-lhr19-ecb78f30.discord.media:2087
+[2025-12-12 14:57:29] [INFO    ] discord.voice_state: Voice connection complete.
+[2025-12-12 14:57:33] [ERROR   ] discord.ext.commands.bot: Ignoring exception in command record
+Traceback (most recent call last):
+  File "C:\Users\Tyler\Documents\miuntebotdiscord\MiuntesBot\.venv\Lib\site-packages\discord\ext\commands\core.py", line 266, in wrapped
+    ret = await coro(*args, **kwargs)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Tyler\Documents\miuntebotdiscord\MiuntesBot\bot.py", line 53, in record
+    ctx.voice_client.listen(sink)
+    ^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'VoiceClient' object has no attribute 'listen'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\Tyler\Documents\miuntebotdiscord\MiuntesBot\.venv\Lib\site-packages\discord\ext\commands\bot.py", line 1376, in invoke
+    await ctx.command.invoke(ctx)
+  File "C:\Users\Tyler\Documents\miuntebotdiscord\MiuntesBot\.venv\Lib\site-packages\discord\ext\commands\core.py", line 1064, in invoke
+    await injected(*ctx.args, **ctx.kwargs)  # type: ignore
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Tyler\Documents\miuntebotdiscord\MiuntesBot\.venv\Lib\site-packages\discord\ext\commands\core.py", line 275, in wrapped
+    raise CommandInvokeError(exc) from exc
+discord.ext.commands.errors.CommandInvokeError: Command raised an exception: AttributeError: 'VoiceClient' object has no attribute 'listen'
+[2025-12-12 14:57:55] [ERROR   ] discord.ext.commands.bot: Ignoring exception in command stop
+Traceback (most recent call last):
+  File "C:\Users\Tyler\Documents\miuntebotdiscord\MiuntesBot\.venv\Lib\site-packages\discord\ext\commands\core.py", line 266, in wrapped
+    ret = await coro(*args, **kwargs)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Tyler\Documents\miuntebotdiscord\MiuntesBot\bot.py", line 64, in stop
+    if ctx.voice_client and ctx.voice_client.is_listening():
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'VoiceClient' object has no attribute 'is_listening'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\Tyler\Documents\miuntebotdiscord\MiuntesBot\.venv\Lib\site-packages\discord\ext\commands\bot.py", line 1376, in invoke
+    await ctx.command.invoke(ctx)
+  File "C:\Users\Tyler\Documents\miuntebotdiscord\MiuntesBot\.venv\Lib\site-packages\discord\ext\commands\core.py", line 1064, in invoke
+    await injected(*ctx.args, **ctx.kwargs)  # type: ignore
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Tyler\Documents\miuntebotdiscord\MiuntesBot\.venv\Lib\site-packages\discord\ext\commands\core.py", line 275, in wrapped
+    raise CommandInvokeError(exc) from exc
+discord.ext.commands.errors.CommandInvokeError: Command raised an exception: AttributeError: 'VoiceClient' object has no attribute 'is_listening'
+[2025-12-12 14:57:58] [INFO    ] discord.voice_state: The voice handshake is being terminated for Channel ID 799761389983367181 (Guild ID 799761389047906345)
