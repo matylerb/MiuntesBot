@@ -6,3 +6,4 @@ discord.log
 opus.dll
 libopus.so
 discord.log.*
+*.wav
