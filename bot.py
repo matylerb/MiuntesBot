@@ -7,36 +7,34 @@ import wave
 from collections import defaultdict
 from datetime import datetime
 import asyncio
+
 from openai import OpenAI
+from groq import Groq
 from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate
-from groq import Groq
 
+# --- Load environment ---
 load_dotenv()
-
-# Discord & Groq / OpenAI API keys
 TOKEN = os.getenv('DISCORD_TOKEN')
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 GROQ_API_KEY = os.getenv('GROQ_API_KEY')
 
-if not OPENAI_API_KEY:
-    print("⚠️ OPENAI_API_KEY missing. Transcription will fail.")
-if not GROQ_API_KEY:
-    print("⚠️ GROQ_API_KEY missing. Summarization will fail.")
+if not TOKEN or not OPENAI_API_KEY or not GROQ_API_KEY:
+    raise ValueError("DISCORD_TOKEN, OPENAI_API_KEY, and GROQ_API_KEY must be set in .env")
 
-# Clients
+# --- Clients ---
 openai_client = OpenAI(api_key=OPENAI_API_KEY)
 groq_client = Groq(api_key=GROQ_API_KEY)
 llm = ChatGroq(temperature=0, model_name="llama-3.3-70b-versatile", api_key=GROQ_API_KEY)
 
-# Logging
+# --- Logging ---
 logging.basicConfig(level=logging.INFO)
 logging.getLogger('discord.ext.voice_recv.reader').setLevel(logging.ERROR)
 
-# Discord bot
+# --- Bot ---
 bot = commands.Bot(command_prefix='!', intents=discord.Intents.all())
 
-# Globals for recording
+# --- Recording globals ---
 recording_data = defaultdict(list)
 is_recording = False
 meeting_start_time = None
@@ -44,7 +42,7 @@ meeting_start_time = None
 # --- Bot Events ---
 @bot.event
 async def on_ready():
-    print(f'✅ Logged in as {bot.user}')
+    print(f"✅ Logged in as {bot.user}")
     if not discord.opus.is_loaded():
         try:
             current_folder = os.path.dirname(os.path.abspath(__file__))
@@ -80,11 +78,10 @@ async def record(ctx):
     if not ctx.voice_client:
         await ctx.send('I am not in a voice channel. Type !join first.')
         return
-    
+
     recording_data.clear()
     is_recording = True
-    meeting_start_time = datetime.now() 
-    
+    meeting_start_time = datetime.now()
     await ctx.send(f'🔴 Recording started at {meeting_start_time.strftime("%H:%M")}! Speak now.')
 
     def callback(user, data):
@@ -102,7 +99,6 @@ async def stop(ctx):
     if ctx.voice_client and is_recording:
         is_recording = False
         ctx.voice_client.stop_listening()
-        
         await ctx.send("💾 Recording stopped. Saving audio and generating minutes...")
         await asyncio.sleep(1)
 
@@ -117,16 +113,15 @@ async def stop(ctx):
             user = bot.get_user(user_id)
             if not user:
                 user = await bot.fetch_user(user_id)
-            
             attendees.append(user.name)
 
             if audio_chunks:
                 combined_audio = b''.join(audio_chunks)
-                if len(combined_audio) > 50000: 
+                if len(combined_audio) > 50000:
                     filename = save_audio(user, combined_audio)
                     if filename:
                         saved_files.append((user.name, filename))
-        
+
         if not saved_files:
             await ctx.send("Audio was too short to process.")
             recording_data.clear()
@@ -136,14 +131,12 @@ async def stop(ctx):
 
         try:
             minutes = await generate_minutes(saved_files, meeting_start_time, attendees)
-    
             if len(minutes) > 1900:
                 with open("meeting_minutes.txt", "w", encoding="utf-8") as f:
                     f.write(minutes)
                 await ctx.send("📄 Meeting minutes are too long for chat, attached below:", file=discord.File("meeting_minutes.txt"))
             else:
                 await ctx.send(f"**📝 Meeting Minutes:**\n{minutes}")
-                
         except Exception as e:
             await ctx.send(f"❌ Error generating minutes: {e}")
 
@@ -151,12 +144,11 @@ async def stop(ctx):
     else:
         await ctx.send('I am not recording.')
 
-# --- Helper: Save WAV ---
+# --- Helpers ---
 def save_audio(user, data: bytes):
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    clean_name = "".join([c for c in user.name if c.isalpha() or c.isdigit()]).rstrip()
+    clean_name = "".join([c for c in user.name if c.isalnum()]).rstrip()
     filename = f'{clean_name}_{timestamp}.wav'
-    
     try:
         with wave.open(filename, 'wb') as f:
             f.setnchannels(2)
@@ -168,63 +160,61 @@ def save_audio(user, data: bytes):
         print(f'Error saving {filename}: {e}')
         return None
 
-# --- Generate Meeting Minutes ---
+async def transcribe_user_audio(user_name, filename):
+    """Transcribe a single user's audio file asynchronously."""
+    try:
+        print(f"   > Transcribing {filename} for {user_name}...")
+        with open(filename, "rb") as audio_file:
+            transcription = openai_client.audio.transcriptions.create(
+                model="gpt-4o-transcribe",
+                file=audio_file
+            )
+        text = transcription.text.strip()
+        print(f"   🗣️ Text detected for {user_name}: '{text}'")
+        if text and len(text) > 2:
+            return f"\nSpeaker ({user_name}): {text}"
+        return ""
+    except Exception as e:
+        print(f"   ❌ FAILED to transcribe {filename} for {user_name}: {e}")
+        return ""
+
 async def generate_minutes(file_list, start_time, attendees):
-    full_transcript = ""
-    
-    print(f"--- 🔍 Processing {len(file_list)} audio files ---")
+    # Transcribe all users concurrently
+    transcription_tasks = [transcribe_user_audio(user_name, filename) for user_name, filename in file_list]
+    results = await asyncio.gather(*transcription_tasks)
 
-    for user_name, filename in file_list:
-        try:
-            print(f"   > Transcribing {filename}...")
-            with open(filename, "rb") as audio_file:
-                transcription = openai_client.audio.transcriptions.create(
-                    model="gpt-4o-transcribe",
-                    file=audio_file
-                )
-            text = transcription.text.strip()
-            
-            print(f"   🗣️ Text detected for {user_name}: '{text}'")
-            
-            if text and len(text) > 2: 
-                full_transcript += f"\nSpeaker ({user_name}): {text}"
-                
-        except Exception as e:
-            print(f"   ❌ FAILED to transcribe {filename}: {e}")
-
+    full_transcript = "".join(results)
     if not full_transcript.strip():
         return "Audio recorded, but no clear speech was detected. Try speaking louder or longer."
 
-    print("--- ✅ Transcript ready. Generating summary ---")
-
+    # Summarization prompt
     system_prompt = """You are an efficient executive secretary. 
-    You will be given a raw transcript of a voice chat, the start time, and the attendance list.
-    Your goal is to generate professional Meeting Minutes.
-    
-    Format:
-    1. Meeting Details (Date/Time/Attendees)
-    2. Executive Summary
-    3. Key Discussion Points (Bulleted)
-    4. Action Items (Who needs to do what)
-    """
+You will be given a raw transcript of a voice chat, the start time, and the attendance list.
+Your goal is to generate professional Meeting Minutes.
+
+Format:
+1. Meeting Details (Date/Time/Attendees)
+2. Executive Summary
+3. Key Discussion Points (Bulleted)
+4. Action Items (Who needs to do what)
+"""
 
     user_input = f"""
-    MEETING START TIME: {start_time.strftime("%Y-%m-%d %H:%M:%S")}
-    ATTENDEES: {", ".join(attendees)}
-    
-    TRANSCRIPT:
-    {full_transcript}
-    """
+MEETING START TIME: {start_time.strftime("%Y-%m-%d %H:%M:%S")}
+ATTENDEES: {", ".join(attendees)}
+
+TRANSCRIPT:
+{full_transcript}
+"""
 
     prompt = ChatPromptTemplate.from_messages([
         ("system", system_prompt),
         ("human", "{input}")
     ])
-    
     chain = prompt | llm
     response = await chain.ainvoke({"input": user_input})
     return response.content
 
-# --- Run bot ---
+# --- Run Bot ---
 if TOKEN:
     bot.run(TOKEN)
