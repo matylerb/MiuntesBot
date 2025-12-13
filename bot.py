@@ -127,16 +127,15 @@ async def stop(ctx):
             recording_data.clear()
             return
 
-        await ctx.send(f"✅ Audio saved. Generating Meeting Minutes with AI...")
+        await ctx.send(f"✅ Audio saved. Generating Meeting Minutes (saved to file)...")
 
         try:
             minutes = await generate_minutes(saved_files, meeting_start_time, attendees)
-            if len(minutes) > 1900:
-                with open("meeting_minutes.txt", "w", encoding="utf-8") as f:
-                    f.write(minutes)
-                await ctx.send("📄 Meeting minutes are too long for chat, attached below:", file=discord.File("meeting_minutes.txt"))
-            else:
-                await ctx.send(f"**📝 Meeting Minutes:**\n{minutes}")
+            output_file = f"meeting_minutes_{meeting_start_time.strftime('%Y%m%d_%H%M%S')}.txt"
+            with open(output_file, "w", encoding="utf-8") as f:
+                f.write(minutes)
+
+            await ctx.send(f"📄 Meeting minutes saved to `{output_file}`.")
         except Exception as e:
             await ctx.send(f"❌ Error generating minutes: {e}")
 
