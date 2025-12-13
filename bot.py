@@ -132,16 +132,21 @@ async def stop(ctx):
         try:
             minutes = await generate_minutes(saved_files, meeting_start_time, attendees)
             output_file = f"meeting_minutes_{meeting_start_time.strftime('%Y%m%d_%H%M%S')}.txt"
+            
+            # Save locally
             with open(output_file, "w", encoding="utf-8") as f:
                 f.write(minutes)
 
-            await ctx.send(f"📄 Meeting minutes saved to `{output_file}`.")
+            # Send into Discord channel
+            await ctx.send(f"📄 Meeting minutes generated:", file=discord.File(output_file))
+
         except Exception as e:
             await ctx.send(f"❌ Error generating minutes: {e}")
 
         recording_data.clear()
     else:
         await ctx.send('I am not recording.')
+
 
 # --- Helpers ---
 def save_audio(user, data: bytes):
