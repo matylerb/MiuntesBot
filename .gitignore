@@ -7,3 +7,4 @@ opus.dll
 libopus.so
 *.log
 *.wav
+*.txt
