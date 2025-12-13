@@ -7,38 +7,44 @@ import wave
 from collections import defaultdict
 from datetime import datetime
 import asyncio
-
-from groq import Groq
+from openai import OpenAI
 from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate
+from groq import Groq
 
 load_dotenv()
 
+# Discord & Groq / OpenAI API keys
 TOKEN = os.getenv('DISCORD_TOKEN')
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 GROQ_API_KEY = os.getenv('GROQ_API_KEY')
 
+if not OPENAI_API_KEY:
+    print("⚠️ OPENAI_API_KEY missing. Transcription will fail.")
 if not GROQ_API_KEY:
-    print("⚠️ WARNING: GROQ_API_KEY not found in .env. Summarization will fail.")
+    print("⚠️ GROQ_API_KEY missing. Summarization will fail.")
 
+# Clients
+openai_client = OpenAI(api_key=OPENAI_API_KEY)
 groq_client = Groq(api_key=GROQ_API_KEY)
+llm = ChatGroq(temperature=0, model_name="llama-3.3-70b-versatile", api_key=GROQ_API_KEY)
 
-llm = ChatGroq(temperature=0, model_name="llama3-8b-8192", api_key=GROQ_API_KEY)
-
-
+# Logging
 logging.basicConfig(level=logging.INFO)
 logging.getLogger('discord.ext.voice_recv.reader').setLevel(logging.ERROR)
 
+# Discord bot
 bot = commands.Bot(command_prefix='!', intents=discord.Intents.all())
 
-
+# Globals for recording
 recording_data = defaultdict(list)
 is_recording = False
 meeting_start_time = None
 
+# --- Bot Events ---
 @bot.event
 async def on_ready():
     print(f'✅ Logged in as {bot.user}')
-  
     if not discord.opus.is_loaded():
         try:
             current_folder = os.path.dirname(os.path.abspath(__file__))
@@ -48,6 +54,7 @@ async def on_ready():
         except Exception as e:
             print(f"⚠️ Opus Load Warning: {e}")
 
+# --- Bot Commands ---
 @bot.command()
 async def join(ctx):
     if ctx.author.voice:
@@ -97,7 +104,7 @@ async def stop(ctx):
         ctx.voice_client.stop_listening()
         
         await ctx.send("💾 Recording stopped. Saving audio and generating minutes...")
-        await asyncio.sleep(1) 
+        await asyncio.sleep(1)
 
         if not recording_data:
             await ctx.send('⚠️ No audio data was captured.')
@@ -105,8 +112,7 @@ async def stop(ctx):
 
         saved_files = []
         attendees = []
-        
-        
+
         for user_id, audio_chunks in recording_data.items():
             user = bot.get_user(user_id)
             if not user:
@@ -126,7 +132,7 @@ async def stop(ctx):
             recording_data.clear()
             return
 
-        await ctx.send(f"✅ Audio saved. Generating Meeting Minutes with AI... (This takes a moment)")
+        await ctx.send(f"✅ Audio saved. Generating Meeting Minutes with AI...")
 
         try:
             minutes = await generate_minutes(saved_files, meeting_start_time, attendees)
@@ -145,6 +151,7 @@ async def stop(ctx):
     else:
         await ctx.send('I am not recording.')
 
+# --- Helper: Save WAV ---
 def save_audio(user, data: bytes):
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     clean_name = "".join([c for c in user.name if c.isalpha() or c.isdigit()]).rstrip()
@@ -161,32 +168,21 @@ def save_audio(user, data: bytes):
         print(f'Error saving {filename}: {e}')
         return None
 
+# --- Generate Meeting Minutes ---
 async def generate_minutes(file_list, start_time, attendees):
     full_transcript = ""
     
-    print(f"--- 🔍 DEBUG: Processing {len(file_list)} audio files ---")
+    print(f"--- 🔍 Processing {len(file_list)} audio files ---")
 
     for user_name, filename in file_list:
         try:
             print(f"   > Transcribing {filename}...")
-      
-            with open(filename, "rb") as file:
-                file_content = file.read()
-            
-
-            if len(file_content) < 1000:
-                print(f"   ⚠️ Skipping {filename}: File is too small/empty.")
-                continue
-
-    
-            transcription = groq_client.audio.transcriptions.create(
-                file=(os.path.basename(filename), file_content),
-                model="distil-whisper-large-v3-en", 
-                response_format="text"
-            )
-            
-   
-            text = str(transcription).strip()
+            with open(filename, "rb") as audio_file:
+                transcription = openai_client.audio.transcriptions.create(
+                    model="gpt-4o-transcribe",
+                    file=audio_file
+                )
+            text = transcription.text.strip()
             
             print(f"   🗣️ Text detected for {user_name}: '{text}'")
             
@@ -197,10 +193,9 @@ async def generate_minutes(file_list, start_time, attendees):
             print(f"   ❌ FAILED to transcribe {filename}: {e}")
 
     if not full_transcript.strip():
-        print("--- ❌ DEBUG: Result is empty. No speech found in any files. ---")
-        return "Audio recorded, but the AI could not distinguish any words. (Try speaking louder or longer)."
+        return "Audio recorded, but no clear speech was detected. Try speaking louder or longer."
 
-    print("--- ✅ DEBUG: Transcript found. Generating Summary... ---")
+    print("--- ✅ Transcript ready. Generating summary ---")
 
     system_prompt = """You are an efficient executive secretary. 
     You will be given a raw transcript of a voice chat, the start time, and the attendance list.
@@ -229,5 +224,7 @@ async def generate_minutes(file_list, start_time, attendees):
     chain = prompt | llm
     response = await chain.ainvoke({"input": user_input})
     return response.content
+
+# --- Run bot ---
 if TOKEN:
     bot.run(TOKEN)
