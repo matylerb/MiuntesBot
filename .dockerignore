@@ -1,0 +1,22 @@
+# Ignore Git history
+.git
+
+# Ignore local Python environment & cache
+.venv
+__pycache__
+
+# Ignore Secrets (IMPORTANT)
+.env
+
+# Ignore Windows-specific files
+opus.dll
+libopus-0.x64.dll
+
+# Ignore local Data/Recordings
+*.wav
+*.mp3
+*.txt
+*.log
+bot_data/
+recordings/
+minutes/

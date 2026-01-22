@@ -1,0 +1,9 @@
+services:
+  meeting-bot:
+    build: .
+    container_name: discord-bot
+    restart: always
+    env_file:
+      - .env
+    volumes:
+      - ./bot_data:/app/data
