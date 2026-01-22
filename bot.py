@@ -52,9 +52,12 @@ async def on_ready():
     print(f"✅ Logged in as {bot.user}")
     if not discord.opus.is_loaded():
         try:
-            current_folder = os.path.dirname(os.path.abspath(__file__))
-            opus_path = os.path.join(current_folder, 'libopus-0.x64.dll')
-            discord.opus.load_opus(opus_path)
+            if os.name == 'nt': # Windows
+                current_folder = os.path.dirname(os.path.abspath(__file__))
+                opus_path = os.path.join(current_folder, 'libopus-0.x64.dll')
+                discord.opus.load_opus(opus_path)
+            else: 
+                discord.opus.load_opus('libopus.so.0')
             print("✅ Opus library loaded successfully!")
         except Exception as e:
             print(f"⚠️ Opus Load Warning: {e}")
