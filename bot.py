@@ -22,6 +22,13 @@ GROQ_API_KEY = os.getenv('GROQ_API_KEY')
 if not TOKEN or not OPENAI_API_KEY or not GROQ_API_KEY:
     raise ValueError("DISCORD_TOKEN, OPENAI_API_KEY, and GROQ_API_KEY must be set in .env")
 
+DATA_DIR = "data"
+RECORDINGS_DIR = os.path.join(DATA_DIR, "recordings")
+MINUTES_DIR = os.path.join(DATA_DIR, "minutes")
+
+for folder in [RECORDINGS_DIR, MINUTES_DIR]:
+    os.makedirs(folder, exist_ok=True)
+
 # --- Clients ---
 openai_client = OpenAI(api_key=OPENAI_API_KEY)
 groq_client = Groq(api_key=GROQ_API_KEY)
