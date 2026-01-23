@@ -158,7 +158,11 @@ async def record(ctx):
 
 @bot.command()
 async def stop(ctx):
-    global is_recording, recording_data, meeting_start_time
+    global is_recording, recording_data, meeting_start_time, session_unlocked
+
+    if not session_unlocked:
+        await ctx.send("You need to unlock the bot first using the password.")
+        return
 
     if ctx.voice_client and is_recording:
         is_recording = False
