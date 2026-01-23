@@ -101,21 +101,39 @@ async def you_need_a_password(ctx):
 # --- Bot Commands ---
 @bot.command()
 async def join(ctx):
-    if ctx.author.voice:
-        channel = ctx.author.voice.channel
-        if ctx.voice_client is not None:
-            await ctx.voice_client.move_to(channel)
-        else:
-            await channel.connect(cls=voice_recv.VoiceRecvClient)
-        await ctx.send(f"Joined {channel.name}!")
-    else:
+
+    global session_unlocked
+    
+
+    if not ctx.author.voice:
         await ctx.send("You need to be in a voice channel first!")
+        return
+
+    channel = ctx.author.voice.channel
+
+
+    if ctx.voice_client is None:
+    
+        if await check_password(ctx):
+            session_unlocked = True
+            await channel.connect(cls=voice_recv.VoiceRecvClient)
+            await ctx.send(f"Joined {channel.name} and ready to record.")
+        else:
+            return
+    else:
+        await ctx.voice_client.move_to(channel)
+        await ctx.send(f"Moved to {channel.name}!")
 
 @bot.command()
 async def leave(ctx):
+    global session_unlocked
+    
     if ctx.voice_client:
         await ctx.voice_client.disconnect()
-        await ctx.send('Disconnected.')
+        session_unlocked = False  
+        await ctx.send('👋 Disconnected. Bot is now locked.')
+    else:
+        await ctx.send("I'm not in a channel.")
 
 @bot.command()
 async def record(ctx):
