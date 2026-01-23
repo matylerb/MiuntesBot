@@ -18,6 +18,7 @@ load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 GROQ_API_KEY = os.getenv('GROQ_API_KEY')
+BOT_PASSWORD = os.getenv('PASSWORD')
 
 if not TOKEN or not OPENAI_API_KEY or not GROQ_API_KEY:
     raise ValueError("DISCORD_TOKEN, OPENAI_API_KEY, and GROQ_API_KEY must be set in .env")
@@ -45,6 +46,37 @@ bot = commands.Bot(command_prefix='!', intents=discord.Intents.all())
 recording_data = defaultdict(list)
 is_recording = False
 meeting_start_time = None
+session_unlocked = False
+
+async def check_password(ctx):
+
+
+    try:
+        dm_channel = await ctx.author.create_dm()
+        await ctx.send(f"{ctx.author.mention}, check your DMs to enter the password to unlock the bot.")
+        await dm_channel.send(f"**Authentication Required**\nPlease enter the bot password to join the call:")
+    except discord.Forbidden:
+        await ctx.send(f"{ctx.author.mention}, I cannot DM you. Enable Direct Messages.")
+        return False
+    def check_msg(m):
+        return m.author == ctx.author and m.channel == dm_channel
+
+    try:
+        msg = await bot.wait_for('message', check=check_msg, timeout=30.0)
+
+        if msg.content.strip() == BOT_PASSWORD:
+            await dm_channel.send("**Password Accepted!** Joining channel...")
+            await ctx.send(f"{ctx.author.mention} unlocked the bot.")
+            return True
+        else:
+            await dm_channel.send("**Incorrect Password.**")
+            await ctx.send(f"{ctx.author.mention} entered the wrong password.")
+            return False
+
+    except asyncio.TimeoutError:
+        await dm_channel.send("Time out.")
+        await ctx.send(f"{ctx.author.mention} took too long.")
+        return False
 
 # --- Bot Events ---
 @bot.event
@@ -61,6 +93,10 @@ async def on_ready():
             print("✅ Opus library loaded successfully!")
         except Exception as e:
             print(f"⚠️ Opus Load Warning: {e}")
+
+@bot.event
+async def you_need_a_password(ctx):
+    await ctx.send("You need a password to use this bot.")
 
 # --- Bot Commands ---
 @bot.command()
