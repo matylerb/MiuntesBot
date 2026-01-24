@@ -180,17 +180,23 @@ async def stop(ctx):
         attendees = []
 
         for user_id, audio_chunks in recording_data.items():
-            user = bot.get_user(user_id)
-            if not user:
-                user = await bot.fetch_user(user_id)
-            attendees.append(user.name)
+            member = ctx.guild.get_member(user_id)
+            
+            if not member:
+                try:
+                    member = await ctx.guild.fetch_member(user_id)
+                except:
+                    member = await bot.fetch_user(user_id)
+
+            name_to_use = member.display_name 
+            attendees.append(name_to_use)
 
             if audio_chunks:
                 combined_audio = b''.join(audio_chunks)
                 if len(combined_audio) > 50000:
-                    filename = save_audio(user, combined_audio)
+                    filename = save_audio(member, combined_audio)
                     if filename:
-                        saved_files.append((user.name, filename))
+                        saved_files.append((name_to_use, filename))
 
         if not saved_files:
             await ctx.send("Audio was too short to process.")
@@ -221,7 +227,7 @@ async def stop(ctx):
 # --- Helpers ---
 def save_audio(user, data: bytes):
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    clean_name = "".join([c for c in user.name if c.isalnum()]).rstrip()
+    clean_name = "".join([c for c in user.display_name if c.isalnum()]).rstrip()
     filename = f'{clean_name}_{timestamp}.wav'
     try:
         with wave.open(filename, 'wb') as f:
