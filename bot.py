@@ -18,7 +18,9 @@ load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 GROQ_API_KEY = os.getenv('GROQ_API_KEY')
-BOT_PASSWORD = os.getenv('BOT_PASSWORD')
+RAW_PASSWORD = os.getenv('BOT_PASSWORD', '')
+BOT_PASSWORD = RAW_PASSWORD.strip()
+
 
 if not TOKEN or not OPENAI_API_KEY or not GROQ_API_KEY:
     raise ValueError("DISCORD_TOKEN, OPENAI_API_KEY, and GROQ_API_KEY must be set in .env")
