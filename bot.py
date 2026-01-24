@@ -42,7 +42,7 @@ logging.basicConfig(level=logging.INFO)
 logging.getLogger('discord.ext.voice_recv.reader').setLevel(logging.ERROR)
 
 # --- Bot ---
-bot = commands.Bot(command_prefix='!', intents=discord.Intents.all())
+bot = commands.Bot(command_prefix='?', intents=discord.Intents.all())
 
 # --- Recording globals ---
 recording_data = defaultdict(list)
