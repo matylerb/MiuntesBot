@@ -142,7 +142,7 @@ async def record(ctx):
     global is_recording, recording_data, meeting_start_time
 
     if not ctx.voice_client:
-        await ctx.send('I am not in a voice channel. Type !join first.')
+        await ctx.send('I am not in a voice channel. Type ?join first.')
         return
 
     recording_data.clear()
