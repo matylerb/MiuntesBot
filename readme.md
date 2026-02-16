@@ -19,9 +19,9 @@ A smart Discord bot that **records voice channel meetings**, **transcribes speec
 
 | Command | Description |
 |---------|-------------|
-| `!join` | Bot joins your current voice channel. |
-| `!leave` | Bot disconnects from the voice channel. |
-| `!record` | Start recording the meeting. |
-| `!stop` | Stop recording and generate meeting minutes. |
+| `?join` | Bot joins your current voice channel. |
+| `?leave` | Bot disconnects from the voice channel. |
+| `?record` | Start recording the meeting. |
+| `?stop` | Stop recording and generate meeting minutes. |
 
 ---
